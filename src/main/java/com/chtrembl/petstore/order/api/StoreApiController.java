@@ -1,9 +1,5 @@
 package com.chtrembl.petstore.order.api;
 
-import com.azure.cosmos.CosmosContainer;
-import com.azure.cosmos.models.CosmosItemRequestOptions;
-import com.azure.cosmos.models.CosmosQueryRequestOptions;
-import com.azure.cosmos.models.PartitionKey;
 import com.chtrembl.petstore.order.model.ContainerEnvironment;
 import com.chtrembl.petstore.order.model.Order;
 import com.chtrembl.petstore.order.model.Product;
@@ -50,9 +46,6 @@ public class StoreApiController implements StoreApi {
 
 	@Autowired
 	private ContainerEnvironment containerEnvironment;
-
-	@Autowired
-	private CosmosContainer ordersContainer;
 
 	@Autowired
 	private StoreApiCache storeApiCache;
@@ -121,25 +114,19 @@ public class StoreApiController implements StoreApi {
 					"PetStoreOrderService incoming POST request to petstoreorderservice/v2/order/placeOder for order id:%s",
 					body.getId()));
 
-			Order order = ordersContainer.queryItems(String.format("SELECT * FROM orders WHERE orders.id = '%s'", body.getId()),
-							new CosmosQueryRequestOptions(), Order.class)
-					.stream().findFirst()
-					.orElse(new Order());
-
-			order.setId(body.getId());
-			order.setEmail(body.getEmail());
-			order.setComplete(body.isComplete());
-
+			this.storeApiCache.getOrder(body.getId()).setId(body.getId());
+			this.storeApiCache.getOrder(body.getId()).setEmail(body.getEmail());
+			this.storeApiCache.getOrder(body.getId()).setComplete(body.isComplete());
 
 			// 1 product is just an add from a product page so cache needs to be updated
 			if (body.getProducts() != null && body.getProducts().size() == 1) {
 				Product incomingProduct = body.getProducts().get(0);
-				List<Product> existingProducts = order.getProducts();
+				List<Product> existingProducts = this.storeApiCache.getOrder(body.getId()).getProducts();
 				if (existingProducts != null && existingProducts.size() > 0) {
 					// removal if one exists...
 					if (incomingProduct.getQuantity() == 0) {
 						existingProducts.removeIf(product -> product.getId().equals(incomingProduct.getId()));
-						order.setProducts(existingProducts);
+						this.storeApiCache.getOrder(body.getId()).setProducts(existingProducts);
 					}
 					// update quantity if one exists or add new entry
 					else {
@@ -158,27 +145,25 @@ public class StoreApiController implements StoreApi {
 							}
 						} else {
 							// existing products but one does not exist matching the incoming product
-							order.addProductsItem(body.getProducts().get(0));
+							this.storeApiCache.getOrder(body.getId()).addProductsItem(body.getProducts().get(0));
 						}
 					}
 				} else {
 					// nothing existing....
 					if (body.getProducts().get(0).getQuantity() > 0) {
-						order.setProducts(body.getProducts());
+						this.storeApiCache.getOrder(body.getId()).setProducts(body.getProducts());
 					}
 				}
 			}
 			// n products is the current order being modified and so cache can be replaced
 			// with it
 			if (body.getProducts() != null && body.getProducts().size() > 1) {
-				order.setProducts(body.getProducts());
+				this.storeApiCache.getOrder(body.getId()).setProducts(body.getProducts());
 			}
 
 			try {
-
+				Order order = this.storeApiCache.getOrder(body.getId());
 				String orderJSON = new ObjectMapper().writeValueAsString(order);
-
-				ordersContainer.upsertItem(order, new PartitionKey(order.getId()), new CosmosItemRequestOptions());
 
 				ApiUtil.setResponse(request, "application/json", orderJSON);
 				return new ResponseEntity<>(HttpStatus.OK);
@@ -208,10 +193,7 @@ public class StoreApiController implements StoreApi {
 
 			List<Product> products = this.storeApiCache.getProducts();
 
-			Order order = ordersContainer.queryItems(String.format("SELECT * FROM orders WHERE orders.id = '%s'", orderId),
-							new CosmosQueryRequestOptions(), Order.class)
-					.stream().findFirst()
-					.orElse(new Order());
+			Order order = this.storeApiCache.getOrder(orderId);
 
 			if (products != null) {
 				// cross reference order data (order only has product id and qty) with product
