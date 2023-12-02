@@ -1,5 +1,7 @@
 package com.chtrembl.petstore.order.api;
 
+import com.azure.messaging.servicebus.ServiceBusMessage;
+import com.azure.messaging.servicebus.ServiceBusSenderClient;
 import com.chtrembl.petstore.order.model.ContainerEnvironment;
 import com.chtrembl.petstore.order.model.Order;
 import com.chtrembl.petstore.order.model.Product;
@@ -49,6 +51,9 @@ public class StoreApiController implements StoreApi {
 
 	@Autowired
 	private StoreApiCache storeApiCache;
+
+	@Autowired
+	private ServiceBusSenderClient serviceBusSenderClient;
 
 	@Override
 	public StoreApiCache getBeanToBeAutowired() {
@@ -164,6 +169,9 @@ public class StoreApiController implements StoreApi {
 			try {
 				Order order = this.storeApiCache.getOrder(body.getId());
 				String orderJSON = new ObjectMapper().writeValueAsString(order);
+
+				//send Order to messagebus
+				serviceBusSenderClient.sendMessage(new ServiceBusMessage(orderJSON));
 
 				ApiUtil.setResponse(request, "application/json", orderJSON);
 				return new ResponseEntity<>(HttpStatus.OK);
