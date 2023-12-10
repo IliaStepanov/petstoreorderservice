@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Profile;
 import java.util.Collections;
 
 @Configuration
-@Profile("cosmos")
+@Profile("final")
 public class CosmosDbConfiguration {
 
     @Value("${petstore.cosmos.account_host}")

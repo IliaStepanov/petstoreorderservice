@@ -52,8 +52,8 @@ public class StoreApiController implements StoreApi {
 	@Autowired
 	private StoreApiCache storeApiCache;
 
-	@Autowired
-	private ServiceBusSenderClient serviceBusSenderClient;
+//	@Autowired
+//	private ServiceBusSenderClient serviceBusSenderClient;
 
 	@Override
 	public StoreApiCache getBeanToBeAutowired() {
@@ -170,8 +170,8 @@ public class StoreApiController implements StoreApi {
 				Order order = this.storeApiCache.getOrder(body.getId());
 				String orderJSON = new ObjectMapper().writeValueAsString(order);
 
-				//send Order to messagebus
-				serviceBusSenderClient.sendMessage(new ServiceBusMessage(orderJSON));
+//				//send Order to messagebus
+//				serviceBusSenderClient.sendMessage(new ServiceBusMessage(orderJSON));
 
 				ApiUtil.setResponse(request, "application/json", orderJSON);
 				return new ResponseEntity<>(HttpStatus.OK);
