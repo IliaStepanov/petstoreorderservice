@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 @Configuration
-@Profile("final")
 public class ServiceBusProducer {
 
     @Value("${petstore.bus.connection}")
